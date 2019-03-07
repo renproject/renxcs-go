@@ -2,6 +2,7 @@ package crypto
 
 import (
 	"bytes"
+	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
@@ -45,6 +46,10 @@ func (encrypter *rsaEncrypter) Marshal() ([]byte, error) {
 
 func (encrypter *rsaEncrypter) Encrypt(data []byte) ([]byte, error) {
 	return rsa.EncryptOAEP(sha256.New(), rand.Reader, encrypter.PublicKey, data, nil)
+}
+
+func (encrypter *rsaEncrypter) PubKey() crypto.PublicKey {
+	return encrypter.PublicKey
 }
 
 func marshalRSAPubKey(publicKey *rsa.PublicKey) ([]byte, error) {
@@ -107,6 +112,10 @@ func (decrypter *rsaDecrypter) Encrypter() Encrypter {
 	return &rsaEncrypter{
 		PublicKey: &decrypter.PublicKey,
 	}
+}
+
+func (decrypter *rsaDecrypter) PrivKey() crypto.PrivateKey {
+	return decrypter.PrivateKey
 }
 
 func marshalRSAPrivKey(privateKey *rsa.PrivateKey) ([]byte, error) {

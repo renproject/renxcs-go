@@ -2,6 +2,7 @@ package crypto
 
 import (
 	"bytes"
+	"crypto"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"encoding/hex"
@@ -55,6 +56,10 @@ func (signer *ecdsaSigner) Marshal() ([]byte, error) {
 
 func (signer *ecdsaSigner) Verifier() Verifier {
 	return &ecdsaVerifier{pubKey: &signer.privKey.PublicKey}
+}
+
+func (signer *ecdsaSigner) PrivKey() crypto.PrivateKey {
+	return signer.privKey
 }
 
 func NewECDSAVerifier(key interface{}) (Verifier, error) {
@@ -111,6 +116,10 @@ func (verifier *ecdsaVerifier) Verify(sig []byte, msgHash [32]byte) error {
 		}
 		return nil
 	})
+}
+
+func (verifier *ecdsaVerifier) PubKey() crypto.PublicKey {
+	return verifier.pubKey
 }
 
 func ECDSAVerify(sig []byte, msgHash [32]byte, checker func(*ecdsa.PublicKey) error) error {
