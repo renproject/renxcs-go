@@ -1,13 +1,25 @@
 package crypto
 
-type Decryptor interface {
+type Decrypter interface {
 	Marshal() ([]byte, error)
 	Decrypt(msg []byte) ([]byte, error)
 
-	Encryptor() Encryptor
+	Encrypter() Encrypter
 }
 
-type Encryptor interface {
+type Encrypter interface {
 	Marshal() ([]byte, error)
 	Encrypt(msg []byte) ([]byte, error)
+}
+
+type Signer interface {
+	Marshal() ([]byte, error)
+	Sign(msgHash [32]byte) ([]byte, error)
+
+	Verifier() Verifier
+}
+
+type Verifier interface {
+	Marshal() ([]byte, error)
+	Verify(sig []byte, msgHash [32]byte) error
 }
