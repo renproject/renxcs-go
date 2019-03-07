@@ -8,6 +8,7 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"fmt"
+	"hash"
 	"math/big"
 )
 
@@ -46,6 +47,14 @@ func (encrypter *rsaEncrypter) Marshal() ([]byte, error) {
 
 func (encrypter *rsaEncrypter) Encrypt(data []byte) ([]byte, error) {
 	return rsa.EncryptOAEP(sha256.New(), rand.Reader, encrypter.PublicKey, data, nil)
+}
+
+func (encrypter *rsaEncrypter) Hash(hash hash.Hash) ([]byte, error) {
+	data, err := encrypter.Marshal()
+	if err != nil {
+		return nil, err
+	}
+	return hash.Sum(data)[len(data):], nil
 }
 
 func (encrypter *rsaEncrypter) PubKey() crypto.PublicKey {

@@ -7,6 +7,7 @@ import (
 	"crypto/elliptic"
 	"encoding/hex"
 	"fmt"
+	"hash"
 
 	ethCrypto "github.com/ethereum/go-ethereum/crypto"
 )
@@ -120,6 +121,14 @@ func (verifier *ecdsaVerifier) Verify(sig []byte, msgHash [32]byte) error {
 
 func (verifier *ecdsaVerifier) PubKey() crypto.PublicKey {
 	return verifier.pubKey
+}
+
+func (verifier *ecdsaVerifier) Hash(hash hash.Hash) ([]byte, error) {
+	data, err := verifier.Marshal()
+	if err != nil {
+		return nil, err
+	}
+	return hash.Sum(data), nil
 }
 
 func ECDSAVerify(sig []byte, msgHash [32]byte, checker func(*ecdsa.PublicKey) error) error {
