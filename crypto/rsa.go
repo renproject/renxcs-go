@@ -6,14 +6,15 @@ import (
 	"crypto/rsa"
 	"crypto/sha256"
 	"encoding/binary"
+	"fmt"
 	"math/big"
 )
 
-type rsaEncryptor struct {
+type rsaEncrypter struct {
 	*rsa.PublicKey
 }
 
-func NewRSAEncryptor(key interface{}) (Encryptor, error) {
+func NewRSAEncrypter(key interface{}) (Encrypter, error) {
 	var pubKey *rsa.PublicKey
 	switch key := key.(type) {
 	case *rsa.PrivateKey:
@@ -30,18 +31,20 @@ func NewRSAEncryptor(key interface{}) (Encryptor, error) {
 			return nil, err
 		}
 		pubKey = &publicKey
+	default:
+		return nil, fmt.Errorf("unknown type: %T cannot convert into an RSA encrypter", key)
 	}
-	return &rsaEncryptor{
+	return &rsaEncrypter{
 		PublicKey: pubKey,
 	}, nil
 }
 
-func (encryptor *rsaEncryptor) Marshal() ([]byte, error) {
-	return marshalRSAPubKey(encryptor.PublicKey)
+func (encrypter *rsaEncrypter) Marshal() ([]byte, error) {
+	return marshalRSAPubKey(encrypter.PublicKey)
 }
 
-func (encryptor *rsaEncryptor) Encrypt(data []byte) ([]byte, error) {
-	return rsa.EncryptOAEP(sha256.New(), rand.Reader, encryptor.PublicKey, data, nil)
+func (encrypter *rsaEncrypter) Encrypt(data []byte) ([]byte, error) {
+	return rsa.EncryptOAEP(sha256.New(), rand.Reader, encrypter.PublicKey, data, nil)
 }
 
 func marshalRSAPubKey(publicKey *rsa.PublicKey) ([]byte, error) {
@@ -67,11 +70,11 @@ func unmarshalRSAPubKey(pubKeyBytes []byte) (rsa.PublicKey, error) {
 	}, nil
 }
 
-type rsaDecryptor struct {
+type rsaDecrypter struct {
 	*rsa.PrivateKey
 }
 
-func NewRSADecryptor(key interface{}) (Decryptor, error) {
+func NewRSADecrypter(key interface{}) (Decrypter, error) {
 	var privKey *rsa.PrivateKey
 	switch key := key.(type) {
 	case *rsa.PrivateKey:
@@ -84,23 +87,25 @@ func NewRSADecryptor(key interface{}) (Decryptor, error) {
 			return nil, err
 		}
 		privKey = &privateKey
+	default:
+		return nil, fmt.Errorf("unknown type: %T cannot convert into an RSA decrypter", key)
 	}
-	return &rsaDecryptor{
+	return &rsaDecrypter{
 		PrivateKey: privKey,
 	}, nil
 }
 
-func (decryptor *rsaDecryptor) Marshal() ([]byte, error) {
-	return marshalRSAPrivKey(decryptor.PrivateKey)
+func (decrypter *rsaDecrypter) Marshal() ([]byte, error) {
+	return marshalRSAPrivKey(decrypter.PrivateKey)
 }
 
-func (decryptor *rsaDecryptor) Decrypt(data []byte) ([]byte, error) {
-	return rsa.DecryptOAEP(sha256.New(), rand.Reader, decryptor.PrivateKey, data, nil)
+func (decrypter *rsaDecrypter) Decrypt(data []byte) ([]byte, error) {
+	return rsa.DecryptOAEP(sha256.New(), rand.Reader, decrypter.PrivateKey, data, nil)
 }
 
-func (decryptor *rsaDecryptor) Encryptor() Encryptor {
-	return &rsaEncryptor{
-		PublicKey: &decryptor.PublicKey,
+func (decrypter *rsaDecrypter) Encrypter() Encrypter {
+	return &rsaEncrypter{
+		PublicKey: &decrypter.PublicKey,
 	}
 }
 

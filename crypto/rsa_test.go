@@ -12,18 +12,18 @@ import (
 )
 
 var _ = Describe("RSA", func() {
-	Context("when marshalling and unmarshalling the encryptor", func() {
+	Context("when marshalling and unmarshalling the encrypter", func() {
 		It("should not change", func() {
 			Expect(quick.Check(func() bool {
 				key, err := rsa.GenerateKey(rand.Reader, 2048)
 				Expect(err).Should(BeNil())
-				encryptor, err := NewRSAEncryptor(key)
+				encrypter, err := NewRSAEncrypter(key)
 				Expect(err).Should(BeNil())
-				data, err := encryptor.Marshal()
+				data, err := encrypter.Marshal()
 				Expect(err).Should(BeNil())
-				encryptor2, err := NewRSAEncryptor(data)
+				encrypter2, err := NewRSAEncrypter(data)
 				Expect(err).Should(BeNil())
-				data2, err := encryptor2.Marshal()
+				data2, err := encrypter2.Marshal()
 				Expect(err).Should(BeNil())
 				return reflect.DeepEqual(data, data2)
 			}, &quick.Config{
@@ -35,15 +35,15 @@ var _ = Describe("RSA", func() {
 			Expect(quick.Check(func() bool {
 				key, err := rsa.GenerateKey(rand.Reader, 2048)
 				Expect(err).Should(BeNil())
-				encryptor, err := NewRSAEncryptor(key)
+				encrypter, err := NewRSAEncrypter(key)
 				Expect(err).Should(BeNil())
-				data, err := encryptor.Marshal()
+				data, err := encrypter.Marshal()
 				Expect(err).Should(BeNil())
-				_, err = encryptor.Encrypt([]byte("Secret"))
+				_, err = encrypter.Encrypt([]byte("Secret"))
 				Expect(err).Should(BeNil())
-				encryptor2, err := NewRSAEncryptor(data)
+				encrypter2, err := NewRSAEncrypter(data)
 				Expect(err).Should(BeNil())
-				_, err = encryptor2.Encrypt([]byte("Secret"))
+				_, err = encrypter2.Encrypt([]byte("Secret"))
 				Expect(err).Should(BeNil())
 				return true
 			}, &quick.Config{
@@ -52,18 +52,18 @@ var _ = Describe("RSA", func() {
 		})
 	})
 
-	Context("when marshalling and unmarshalling the decryptor", func() {
+	Context("when marshalling and unmarshalling the decrypter", func() {
 		It("should not change", func() {
 			Expect(quick.Check(func() bool {
 				key, err := rsa.GenerateKey(rand.Reader, 2048)
 				Expect(err).Should(BeNil())
-				decryptor, err := NewRSADecryptor(key)
+				decrypter, err := NewRSADecrypter(key)
 				Expect(err).Should(BeNil())
-				data, err := decryptor.Marshal()
+				data, err := decrypter.Marshal()
 				Expect(err).Should(BeNil())
-				decryptor2, err := NewRSADecryptor(data)
+				decrypter2, err := NewRSADecrypter(data)
 				Expect(err).Should(BeNil())
-				data2, err := decryptor2.Marshal()
+				data2, err := decrypter2.Marshal()
 				Expect(err).Should(BeNil())
 				return reflect.DeepEqual(data, data2)
 			}, &quick.Config{
@@ -75,17 +75,17 @@ var _ = Describe("RSA", func() {
 			Expect(quick.Check(func() bool {
 				key, err := rsa.GenerateKey(rand.Reader, 2048)
 				Expect(err).Should(BeNil())
-				decryptor, err := NewRSADecryptor(key)
+				decrypter, err := NewRSADecrypter(key)
 				Expect(err).Should(BeNil())
-				cipherText, err := decryptor.Encryptor().Encrypt([]byte("Secret"))
+				cipherText, err := decrypter.Encrypter().Encrypt([]byte("Secret"))
 				Expect(err).Should(BeNil())
-				data, err := decryptor.Marshal()
+				data, err := decrypter.Marshal()
 				Expect(err).Should(BeNil())
-				data1, err := decryptor.Decrypt(cipherText)
+				data1, err := decrypter.Decrypt(cipherText)
 				Expect(err).Should(BeNil())
-				decryptor2, err := NewRSADecryptor(data)
+				decrypter2, err := NewRSADecrypter(data)
 				Expect(err).Should(BeNil())
-				data2, err := decryptor2.Decrypt(cipherText)
+				data2, err := decrypter2.Decrypt(cipherText)
 				Expect(err).Should(BeNil())
 				return reflect.DeepEqual(data1, data2)
 			}, &quick.Config{
