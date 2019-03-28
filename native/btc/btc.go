@@ -1,43 +1,35 @@
 package btc
 
 import (
+	"bytes"
 	"context"
-	"fmt"
 	"math/big"
 	"time"
 
+	"github.com/btcsuite/btcd/wire"
 	"github.com/renproject/libbtc-go"
-	"github.com/renproject/renxcs-go"
 )
 
 type bitcoin struct {
 	libbtc.Account
 }
 
-func NewBitcoinBinder(account libbtc.Account) renxcs.NativeBinder {
+func NewBitcoinBinder(account libbtc.Account) *bitcoin {
 	return &bitcoin{
 		Account: account,
 	}
 }
 
-func (bitcoin *bitcoin) Lock(address string, value *big.Int) error {
+func (bitcoin *bitcoin) Build(address string, value *big.Int) (string, []byte, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
-	txHash, _, err := bitcoin.Transfer(ctx, address, value.Int64(), libbtc.Fast, false)
-	if err != nil {
-		return err
-	}
-	fmt.Println(bitcoin.FormatTransactionView("Successfully locked funds on bitcoin", txHash))
-	return nil
+	return bitcoin.Account.BuildTransfer(ctx, address, value.Int64(), libbtc.Fast, false)
 }
 
-func (bitcoin *bitcoin) Unlock(address string) error {
+func (bitcoin *bitcoin) Submit(tx []byte) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
-	txHash, _, err := bitcoin.Transfer(ctx, address, renxcs.MinMintValue, libbtc.Fast, true)
-	if err != nil {
-		return err
-	}
-	fmt.Println(bitcoin.FormatTransactionView("Successfully unlocked funds on bitcoin", txHash))
-	return nil
+	msgTx := wire.NewMsgTx(2)
+	msgTx.Deserialize(bytes.NewBuffer(tx))
+	return bitcoin.PublishTransaction(ctx, msgTx)
 }
