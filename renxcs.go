@@ -1,23 +1,17 @@
 package renxcs
 
 import (
-	"crypto/rsa"
 	"math/big"
-
-	"github.com/ethereum/go-ethereum/common"
 )
 
 const MinMintValue = 100000
 
 type NativeBinder interface {
-	Lock(address string, value *big.Int) error
-	Unlock(address string) error
+	Build(address string, value *big.Int) (string, []byte, error)
+	Submit(tx []byte) error
 }
 
-type Bridge interface {
-	Claim(rsaPubKey rsa.PublicKey, btcAddr common.Address) error
-	Burn(rsaPubKey rsa.PublicKey, btcAddr common.Address) error
-	UnusedAddress() (common.Address, error)
-	Verify(rsaPubKey rsa.PublicKey, address common.Address) error
-	OwnerOf(address common.Address) (common.Address, error)
+type ForeignBinder interface {
+	Claim(txhash [32]byte, value *big.Int) error
+	Mint(txHash [32]byte, sigR, sigS *big.Int) error
 }
