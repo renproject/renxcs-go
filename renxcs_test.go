@@ -1,31 +1,23 @@
 package renxcs_test
 
 import (
-	"context"
 	"crypto/ecdsa"
-	"crypto/rand"
-	"crypto/rsa"
 	"encoding/hex"
 	"fmt"
 	"math/big"
 	"os"
 
-	"github.com/btcsuite/btcd/btcec"
 	"github.com/btcsuite/btcd/chaincfg"
-	"github.com/btcsuite/btcutil"
 	"github.com/btcsuite/btcutil/hdkeychain"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/renproject/libbtc-go"
-	"github.com/renproject/libbtc-go/clients"
 	"github.com/renproject/libeth-go"
 	. "github.com/renproject/renxcs-go"
-	renCrypto "github.com/renproject/renxcs-go/crypto"
-	"github.com/renproject/renxcs-go/foreign/eth/wbtc"
+	"github.com/renproject/renxcs-go/foreign/eth/zbtc"
 	"github.com/renproject/renxcs-go/native/btc"
-	"github.com/sirupsen/logrus"
 	"github.com/tyler-smith/go-bip39"
 )
 
@@ -62,181 +54,91 @@ var _ = Describe("Bitcoin Native Binder", func() {
 		return privKey.ToECDSA(), nil
 	}
 
-	ethKeys := map[string]*ecdsa.PrivateKey{}
-	btcKeys := map[string]*ecdsa.PrivateKey{}
-	var wbtcAddress common.Address
+	var renBTCAddress string
+	var zbtcAddress common.Address
 
-	claimEthPrivateKey := func(binder Bridge, pubKey rsa.PublicKey, btcAddress string) ([]byte, error) {
-		if err := binder.Verify(pubKey, common.HexToAddress(btcAddress)); err != nil {
-			return nil, err
-		}
-		addr, err := binder.OwnerOf(common.HexToAddress(btcAddress))
+	renvmSign := func(txHash [32]byte, amount *big.Int) []byte {
+		key, err := loadKey(44, 1, 0, 0, 0)
 		if err != nil {
-			return nil, err
+			panic(err)
 		}
-		encrypter, err := renCrypto.NewRSAEncrypter(pubKey)
+		sig, err := crypto.Sign(txHash[:], key)
 		if err != nil {
-			return nil, err
+			panic(err)
 		}
-		signer, err := renCrypto.NewECDSASigner(ethKeys[addr.String()])
-		if err != nil {
-			return nil, err
-		}
-		privKeyBytes, err := signer.Marshal()
-		if err != nil {
-			return nil, err
-		}
-		return encrypter.Encrypt(privKeyBytes)
+		return sig
 	}
 
-	claimBtcPrivateKey := func(binder Bridge, pubKey rsa.PublicKey, btcAddress common.Address) ([]byte, error) {
-		if err := binder.Verify(pubKey, btcAddress); err != nil {
-			return nil, err
-		}
-		encrypter, err := renCrypto.NewRSAEncrypter(pubKey)
-		if err != nil {
-			return nil, err
-		}
-
-		privKey, ok := btcKeys[hex.EncodeToString(btcAddress.Bytes())]
-		if !ok {
-			return nil, fmt.Errorf("cannot find the private key corresponding to: %s", btcAddress)
-		}
-
-		signer, err := renCrypto.NewECDSASigner(privKey)
-		if err != nil {
-			return nil, err
-		}
-		privKeyBytes, err := signer.Marshal()
-		if err != nil {
-			return nil, err
-		}
-		fmt.Println("Priv Key", hex.EncodeToString(privKeyBytes))
-		return encrypter.Encrypt(privKeyBytes)
-	}
-
-	// burnTokenReq := func(binder Bridge, pubKey rsa.PublicKey, address string) ([]byte, error) {
-	// 	if err := binder.Verify(pubKey, address); err != nil {
-	// 		return nil, err
-	// 	}
-
-	// }
-
-	BeforeSuite(func() {
-		ethAddrs := []common.Address{}
-		btcAddrs := []common.Address{}
-
-		for i := uint32(0); i < 10; i++ {
-			btcKey, err := loadKey(44, 1, 1, 0, i)
-			Expect(err).Should(BeNil())
-			ethKey, err := loadKey(44, 1, 2, 0, i)
-			Expect(err).Should(BeNil())
-			cl, err := clients.NewBlockchainInfoClient("testnet")
-			Expect(err).Should(BeNil())
-			ethAddress := crypto.PubkeyToAddress(ethKey.PublicKey)
-			pubKey, err := cl.SerializePublicKey((*btcec.PublicKey)(&btcKey.PublicKey))
-			Expect(err).Should(BeNil())
-			addr, err := cl.PublicKeyToAddress(pubKey)
-			Expect(err).Should(BeNil())
-			pubKeyHash := addr.(*btcutil.AddressPubKeyHash)
-			addrString := hex.EncodeToString(pubKeyHash.Hash160()[:])
-			ethKeys[ethAddress.String()] = ethKey
-			btcKeys[addrString] = btcKey
-			ethAddrs = append(ethAddrs, ethAddress)
-			btcAddrs = append(btcAddrs, common.HexToAddress(addrString))
-		}
-
+	initInterop := func() (common.Address, string) {
+		cl, err := libbtc.NewBlockchainInfoClient("testnet")
+		Expect(err).Should(BeNil())
 		key, err := loadKey(44, 1, 0, 0, 0)
 		Expect(err).Should(BeNil())
-		acc, err := libeth.NewAccount("https://kovan.infura.io", key)
+		client, err := libeth.NewMercuryClient("kovan", "")
 		Expect(err).Should(BeNil())
+		acc, err := libeth.NewAccount(client, key)
+		Expect(err).Should(BeNil())
+		renETHAddress := acc.Address()
+		address, _, err := zbtc.Deploy(acc, renETHAddress)
+		Expect(err).Should(BeNil())
+		zbtcAddress := address
+		btcAcc := libbtc.NewAccount(cl, key, nil)
+		btcAddr, err := btcAcc.Address()
+		Expect(err).Should(BeNil())
+		renBTCAddress := btcAddr
+		return zbtcAddress, renBTCAddress.String()
+	}
 
-		address, err := wbtc.Deploy(acc, ethAddrs, btcAddrs)
-		Expect(err).Should(BeNil())
-		wbtcAddress = address
-		fmt.Println(address.String())
+	claimToken := func(native NativeBinder, foreign ForeignBinder) [32]byte {
+		amount := big.NewInt(20000)
+		txHash, tx, err := native.Build(renBTCAddress, amount)
+		if err != nil {
+			panic(err)
+		}
+		txHashBytes, err := hex.DecodeString(txHash)
+		if err != nil {
+			panic(err)
+		}
+		txHashBytes32 := [32]byte{}
+		copy(txHashBytes32[:], txHashBytes)
+		if err := foreign.Claim(txHashBytes32, amount); err != nil {
+			panic(err)
+		}
+		if err := native.Submit(tx); err != nil {
+			panic(err)
+		}
+		return txHashBytes32
+	}
+
+	mintToken := func(foreign ForeignBinder, txHashBytes32 [32]byte, sig []byte) {
+		if err := foreign.Mint(txHashBytes32, sig); err != nil {
+			panic(err)
+		}
+	}
+
+	BeforeSuite(func() {
+		zbtcAddr, btcAddr := initInterop()
+		zbtcAddress = zbtcAddr
+		renBTCAddress = btcAddr
 	})
 
 	Context("when interacting honestly", func() {
-		var btcAddress common.Address
-		var rsakey *rsa.PrivateKey
-
-		It("should successfuly claim the nft", func() {
-			privKey, err := loadKey(44, 1, 0, 0, 0)
-			Expect(err).Should(BeNil())
-			acc, err := libeth.NewAccount("https://kovan.infura.io", privKey)
-			Expect(err).Should(BeNil())
-			acc.WriteAddress("REN.WBTC", wbtcAddress)
-			binder, err := wbtc.NewWBTCBinder(acc)
-			Expect(err).Should(BeNil())
-			btcAddress, err = binder.UnusedAddress()
-			Expect(err).Should(BeNil())
-			rsakey, err = rsa.GenerateKey(rand.Reader, 2048)
-			Expect(err).Should(BeNil())
-			Expect(binder.Claim(rsakey.PublicKey, btcAddress)).Should(BeNil())
-		})
-
-		It("should successfully fund a btc address", func() {
-			privKey, err := loadKey(44, 1, 0, 0, 0)
-			Expect(err).Should(BeNil())
-			client, err := clients.NewBitcoinFNClient(os.Getenv("RPC_URL"), os.Getenv("RPC_USER"), os.Getenv("RPC_PASSWORD"))
-			Expect(err).Should(BeNil())
-			acc := libbtc.NewAccount(client, privKey, logrus.StandardLogger())
-			binder := btc.NewBitcoinBinder(acc)
-			addr, err := btcutil.NewAddressPubKeyHash(btcAddress.Bytes(), acc.NetworkParams())
-			Expect(binder.Lock(addr.EncodeAddress(), big.NewInt(50000))).Should(BeNil())
-		})
-
-		It("should successfully burn the nft", func() {
-			privKey, err := loadKey(44, 1, 0, 0, 0)
-			Expect(err).Should(BeNil())
-			acc, err := libeth.NewAccount("https://kovan.infura.io", privKey)
-			Expect(err).Should(BeNil())
-			acc.WriteAddress("REN.WBTC", wbtcAddress)
-			binder, err := wbtc.NewWBTCBinder(acc)
-			Expect(err).Should(BeNil())
-			encryptedPrivKey, err := claimEthPrivateKey(binder, rsakey.PublicKey, btcAddress.String())
-			Expect(err).Should(BeNil())
-			decryptor, err := renCrypto.NewRSADecrypter(rsakey)
-			Expect(err).Should(BeNil())
-			privKeyBytes, err := decryptor.Decrypt(encryptedPrivKey)
-			Expect(err).Should(BeNil())
-			signer, err := renCrypto.NewECDSASigner(privKeyBytes)
-			Expect(err).Should(BeNil())
-			tokenOwner, err := libeth.NewAccount("https://kovan.infura.io", signer.PrivKey().(*ecdsa.PrivateKey))
-			Expect(err).Should(BeNil())
-			tokenOwnerBinder, err := wbtc.NewWBTCBinder(tokenOwner)
-			Expect(err).Should(BeNil())
-			_, err = acc.Transfer(context.Background(), tokenOwner.Address(), big.NewInt(1000000000000000), libeth.Fast, 0, false)
-			Expect(err).Should(BeNil())
-			Expect(tokenOwnerBinder.Burn(rsakey.PublicKey, btcAddress)).Should(BeNil())
-		})
-
 		It("should successfully spend a btc address", func() {
-			privKey, err := loadKey(44, 1, 0, 0, 0)
+			key, err := loadKey(44, 1, 2, 0, 0)
 			Expect(err).Should(BeNil())
-			acc, err := libeth.NewAccount("https://kovan.infura.io", privKey)
+			cl, err := libbtc.NewBlockchainInfoClient("testnet")
 			Expect(err).Should(BeNil())
-			acc.WriteAddress("REN.WBTC", wbtcAddress)
-			binder, err := wbtc.NewWBTCBinder(acc)
+			client, err := libeth.NewMercuryClient("kovan", "")
 			Expect(err).Should(BeNil())
-			encryptedPrivKey, err := claimBtcPrivateKey(binder, rsakey.PublicKey, btcAddress)
+			acc, err := libeth.NewAccount(client, key)
 			Expect(err).Should(BeNil())
-			decryptor, err := renCrypto.NewRSADecrypter(rsakey)
+			btcAcc := libbtc.NewAccount(cl, key, nil)
+			native := btc.NewBitcoinBinder(btcAcc)
+			foreign, err := zbtc.Connect(acc, zbtcAddress)
 			Expect(err).Should(BeNil())
-			privKeyBytes, err := decryptor.Decrypt(encryptedPrivKey)
-			Expect(err).Should(BeNil())
-			signer, err := renCrypto.NewECDSASigner(privKeyBytes)
-			Expect(err).Should(BeNil())
-			client, err := clients.NewBitcoinFNClient(os.Getenv("RPC_URL"), os.Getenv("RPC_USER"), os.Getenv("RPC_PASSWORD"))
-			Expect(err).Should(BeNil())
-			pubKeyBytes, err := client.SerializePublicKey((*btcec.PublicKey)(&privKey.PublicKey))
-			Expect(err).Should(BeNil())
-			addr, err := client.PublicKeyToAddress(pubKeyBytes)
-			Expect(err).Should(BeNil())
-			btcAcc := libbtc.NewAccount(client, signer.PrivKey().(*ecdsa.PrivateKey), logrus.StandardLogger())
-			btcBinder := btc.NewBitcoinBinder(btcAcc)
-			Expect(btcBinder.Unlock(addr.EncodeAddress())).Should(BeNil())
+			txHash32 := claimToken(native, foreign)
+			sig := renvmSign(txHash32, big.NewInt(20000))
+			mintToken(foreign, txHash32, sig)
 		})
 	})
 })
