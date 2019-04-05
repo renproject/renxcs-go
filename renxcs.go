@@ -12,6 +12,6 @@ type NativeBinder interface {
 }
 
 type ForeignBinder interface {
-	Claim(txhash [32]byte, value *big.Int) error
-	Mint(txHash [32]byte, sig []byte) error
+	Mint(value *big.Int, sig []byte) error
+	Burn(to []byte, value *big.Int, sig []byte) error
 }

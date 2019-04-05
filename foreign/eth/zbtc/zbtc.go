@@ -52,21 +52,7 @@ func Deploy(account libeth.Account, owner common.Address) (common.Address, renxc
 	}, err
 }
 
-func (zbtc *zbtc) Claim(txhash [32]byte, value *big.Int) error {
-	_, err := zbtc.account.Transact(
-		context.Background(),
-		libeth.Fast,
-		nil,
-		func(tops *bind.TransactOpts) (*types.Transaction, error) {
-			return zbtc.bindings.Claim(tops, value, zbtc.account.Address(), txhash)
-		},
-		nil,
-		0,
-	)
-	return err
-}
-
-func (zbtc *zbtc) Mint(txHash [32]byte, sig []byte) error {
+func (zbtc *zbtc) Mint(value *big.Int, sig []byte) error {
 	// r := [32]byte{}
 	// s := [32]byte{}
 	// v := byte(0x00)
@@ -79,7 +65,21 @@ func (zbtc *zbtc) Mint(txHash [32]byte, sig []byte) error {
 		libeth.Fast,
 		nil,
 		func(tops *bind.TransactOpts) (*types.Transaction, error) {
-			return zbtc.bindings.Mint(tops, txHash, sig)
+			return zbtc.bindings.Mint(tops, zbtc.account.Address(), value, sig)
+		},
+		nil,
+		0,
+	)
+	return err
+}
+
+func (zbtc *zbtc) Burn(to []byte, value *big.Int, sig []byte) error {
+	_, err := zbtc.account.Transact(
+		context.Background(),
+		libeth.Fast,
+		nil,
+		func(tops *bind.TransactOpts) (*types.Transaction, error) {
+			return zbtc.bindings.Burn(tops, to, value)
 		},
 		nil,
 		0,
