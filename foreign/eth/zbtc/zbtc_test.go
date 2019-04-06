@@ -69,8 +69,10 @@ var _ = Describe("ZBTC Foreign Binder", func() {
 			hash, err := zbtc.Commitment(account.Address(), big.NewInt(20000), hash32)
 			Expect(err).Should(BeNil())
 			sig, err := crypto.Sign(hash[:], renKey)
+			r := new(big.Int).SetBytes(sig[:32])
+			s := new(big.Int).SetBytes(sig[32:64])
 			Expect(err).Should(BeNil())
-			err = zbtc.Mint(big.NewInt(20000), hash32, sig)
+			err = zbtc.Mint(big.NewInt(20000), hash32, r, s)
 			Expect(err).Should(BeNil())
 		})
 

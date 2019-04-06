@@ -2,6 +2,7 @@ package zbtc
 
 import (
 	"context"
+	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -51,15 +52,31 @@ func Deploy(account libeth.Account, owner common.Address) (common.Address, *zbtc
 	}, err
 }
 
-func (zbtc *zbtc) Mint(value *big.Int, hash [32]byte, sig []byte) error {
+func (zbtc *zbtc) Mint(value *big.Int, hash [32]byte, r, s *big.Int) error {
 	// r := [32]byte{}
 	// s := [32]byte{}
 	// v := byte(0x00)
 	// copy(r[:], sigR.Bytes())
 	// copy(s[:], sigS.Bytes())
 	// sig := append([]byte{v}, append(r[:], s[:]...)...)
+	sig := append(r.Bytes(), append(s.Bytes(), 0x0)...)
+	sig1 := append(r.Bytes(), append(s.Bytes(), 0x1)...)
 
-	_, err := zbtc.account.Transact(
+	ok, err := zbtc.bindings.VerifySig(&bind.CallOpts{}, zbtc.account.Address(), value,
+		hash, sig)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		ok, err := zbtc.bindings.VerifySig(&bind.CallOpts{}, zbtc.account.Address(), value,
+			hash, sig1)
+		if !ok || err != nil {
+			return fmt.Errorf("invalid signature")
+		}
+		sig = sig1
+	}
+
+	_, err = zbtc.account.Transact(
 		context.Background(),
 		libeth.Fast,
 		nil,
