@@ -5,6 +5,7 @@ go 1.12
 require (
 	github.com/btcsuite/btcd v0.0.0-20190315201642-aa6e0f35703c
 	github.com/btcsuite/btcutil v0.0.0-20190207003914-4c204d697803
+	github.com/edsrzf/mmap-go v1.0.0 // indirect
 	github.com/ethereum/go-ethereum v1.8.23
 	github.com/onsi/ginkgo v1.8.0
 	github.com/onsi/gomega v1.5.0
