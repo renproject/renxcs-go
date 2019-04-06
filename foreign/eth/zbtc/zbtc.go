@@ -2,6 +2,7 @@ package zbtc
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"math/big"
 
@@ -82,6 +83,7 @@ func (zbtc *zbtc) Mint(value *big.Int, hash [32]byte, r, s *big.Int) error {
 		libeth.Fast,
 		nil,
 		func(tops *bind.TransactOpts) (*types.Transaction, error) {
+			fmt.Println(hex.EncodeToString(sig))
 			return zbtc.bindings.Mint(tops, zbtc.account.Address(), value, hash, sig)
 		},
 		nil,
