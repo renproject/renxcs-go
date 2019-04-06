@@ -12,6 +12,6 @@ type NativeBinder interface {
 }
 
 type ForeignBinder interface {
-	Mint(value *big.Int, sig []byte) error
+	Mint(*big.Int, [32]byte, []byte) error
 	Burn(to []byte, value *big.Int, sig []byte) error
 }
