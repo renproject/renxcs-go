@@ -9,6 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/renproject/libeth-go"
+	"github.com/renproject/renxcs-go"
 )
 
 type zbtc struct {
@@ -16,7 +17,7 @@ type zbtc struct {
 	bindings *ZBTC
 }
 
-func Connect(account libeth.Account, zbtcAddress common.Address) (*zbtc, error) {
+func Connect(account libeth.Account, zbtcAddress common.Address) (renxcs.ForeignBinder, error) {
 	bindings, err := NewZBTC(zbtcAddress, bind.ContractBackend(account.EthClient()))
 	if err != nil {
 		return nil, err
@@ -27,7 +28,7 @@ func Connect(account libeth.Account, zbtcAddress common.Address) (*zbtc, error) 
 	}, nil
 }
 
-func Deploy(account libeth.Account, owner common.Address) (common.Address, *zbtc, error) {
+func Deploy(account libeth.Account, owner common.Address) (common.Address, renxcs.ForeignBinder, error) {
 	var bindings *ZBTC
 	var zbtcAddr common.Address
 	_, err := account.Transact(
@@ -89,7 +90,7 @@ func (zbtc *zbtc) Mint(value *big.Int, hash [32]byte, r, s *big.Int) error {
 	return err
 }
 
-func (zbtc *zbtc) Burn(to []byte, value *big.Int, sig []byte) error {
+func (zbtc *zbtc) Burn(to []byte, value *big.Int) error {
 	_, err := zbtc.account.Transact(
 		context.Background(),
 		libeth.Fast,
@@ -105,4 +106,8 @@ func (zbtc *zbtc) Burn(to []byte, value *big.Int, sig []byte) error {
 
 func (zbtc *zbtc) Commitment(to common.Address, value *big.Int, hash [32]byte) ([32]byte, error) {
 	return zbtc.bindings.Commitment(&bind.CallOpts{}, to, value, hash)
+}
+
+func (zbtc *zbtc) VerifySignature(to common.Address, value *big.Int, hash [32]byte, r, s *big.Int, v byte) (bool, error) {
+	return zbtc.bindings.VerifySig(&bind.CallOpts{}, to, value, hash, append(r.Bytes(), append(s.Bytes(), v)...))
 }
